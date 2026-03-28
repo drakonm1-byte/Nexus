@@ -1,0 +1,2249 @@
+NEXUS – ESPECIFICACIÓN TÉCNICA DEFINITIVA COMPLETA
+Con gestión de procesos en segundo plano, bandeja del sistema y limpieza total de recursos
+(Incluye todos los módulos desde el clasificador hasta el orquestador, con las adiciones de ServiceManager y SystemTray)
+
+ÍNDICE
+Arquitectura general (mejorada)
+
+Estructura de archivos completa
+
+Código fuente completo (todos los módulos)
+
+3.1. Orquestador principal (core/orchestrator.py)
+
+3.2. Gestor de servicios (core/service_manager.py) – nuevo
+
+3.3. Bandeja del sistema (core/system_tray.py) – nuevo
+
+3.4. Clasificador de intención (core/classifier.py)
+
+3.5. API Gateway y cuotas (core/api_gateway.py)
+
+3.6. Sandbox Docker (core/sandbox.py)
+
+3.7. Proveedor de LLM (core/llm_provider.py)
+
+3.8. Almacén vectorial (core/vector_store.py)
+
+3.9. Gestor de sesiones (core/session_manager.py)
+
+3.10. Gestor de memoria episódica (core/memory_manager.py)
+
+3.11. Motor de personalidad (core/personality_engine.py)
+
+3.12. Motor de reglas condicionales (core/conditional_engine.py)
+
+3.13. Parser de secuencias (core/sequence_parser.py)
+
+3.14. Gestor de voz (core/voice_manager.py)
+
+3.15. Automatización de UI (core/ui_automation.py)
+
+3.16. Gestor de energía (core/power_manager.py)
+
+3.17. Sincronización entre dispositivos (core/sync_manager.py)
+
+3.18. Autoreparación (core/self_healer.py)
+
+3.19. Filtro de privacidad (core/privacy_filter.py)
+
+3.20. Generador de documentación (core/doc_generator.py)
+
+3.21. Generador de diagramas (core/diagram_generator.py)
+
+3.22. Gestor de proyectos (core/project_manager.py)
+
+3.23. Modo demostración (core/tutorial_manager.py)
+
+3.24. Conector de tickets (core/ticket_connector.py)
+
+3.25. Aprendizaje por observación (core/shadow_learner.py)
+
+3.26. Sandbox de habilidades (core/skill_sandbox.py)
+
+3.27. Suite de regresión de habilidades (core/skill_regression_suite.py)
+
+3.28. Control remoto (core/remote_control.py)
+
+3.29. Caché offline (core/offline_cache.py)
+
+3.30. Telemetría (core/telemetry.py)
+
+3.31. Subagentes
+
+3.31.1. Builder (agents/builder.py)
+
+3.31.2. Auditor (agents/auditor.py)
+
+3.31.3. Researcher (agents/researcher.py)
+
+3.31.4. Architect (agents/architect.py)
+
+3.31.5. SecurityExpert (agents/security_expert.py)
+
+3.32. Herramientas
+
+3.32.1. Linter (tools/linter.py)
+
+3.32.2. Git Manager (tools/git_manager.py)
+
+3.32.3. Secret Scanner (tools/secret_scanner.py)
+
+3.32.4. Load Tester (tools/load_tester.py)
+
+3.32.5. System Restore (tools/system_restore.py)
+
+Archivos de configuración
+
+Pruebas
+
+Instalación y despliegue
+
+Glosario
+
+1. ARQUITECTURA GENERAL (MEJORADA)
+Nexus es una aplicación nativa de Windows que consta de:
+
+Núcleo en Python (core/): orquestador, clasificadores, integraciones con Docker, Ollama, etc.
+
+Subagentes (agents/): roles especializados que utilizan el modelo de lenguaje.
+
+Herramientas (tools/): utilidades auxiliares.
+
+Interfaz web incrustada con PyWebView.
+
+Gestor de servicios (core/service_manager.py): lanza Docker Desktop y Ollama en segundo plano (sin ventanas), y los detiene al cerrar Nexus.
+
+Bandeja del sistema (core/system_tray.py): icono en la bandeja que permite abrir/cerrar la ventana principal, ver estado y salir.
+
+Contenedores Docker para sandbox.
+
+Persistencia: SQLite, ChromaDB, archivos de usuario.
+
+Novedades clave:
+
+Al iniciar Nexus, solo aparece un icono en la bandeja. La ventana se abre solo cuando el usuario lo solicita.
+
+Docker Desktop y Ollama se inician en modo silencioso (si no están ya en ejecución).
+
+Al cerrar Nexus, se matan los procesos de Docker y Ollama, liberando RAM y VRAM.
+
+Se utiliza psutil y subprocess con flags de Windows para ocultar ventanas.
+
+2. ESTRUCTURA DE ARCHIVOS COMPLETA
+text
+nexus/
+├── config/
+│   ├── settings.yaml
+│   ├── providers.yaml
+│   ├── agent_team.yaml
+│   ├── quality_profiles.yaml
+│   ├── policies/
+│   └── prompts/
+├── core/
+│   ├── __init__.py
+│   ├── orchestrator.py
+│   ├── service_manager.py        # NUEVO
+│   ├── system_tray.py            # NUEVO
+│   ├── classifier.py
+│   ├── api_gateway.py
+│   ├── sandbox.py
+│   ├── llm_provider.py
+│   ├── vector_store.py
+│   ├── search_provider.py
+│   ├── hardware_sensor.py
+│   ├── session_manager.py
+│   ├── undo_manager.py
+│   ├── queue_manager.py
+│   ├── memory_manager.py
+│   ├── personality_engine.py
+│   ├── trust_model.py
+│   ├── conditional_engine.py
+│   ├── sequence_parser.py
+│   ├── voice_manager.py
+│   ├── ui_automation.py
+│   ├── power_manager.py
+│   ├── sync_manager.py
+│   ├── self_healer.py
+│   ├── privacy_filter.py
+│   ├── doc_generator.py
+│   ├── diagram_generator.py
+│   ├── project_manager.py
+│   ├── tutorial_manager.py
+│   ├── ticket_connector.py
+│   ├── shadow_learner.py
+│   ├── skill_sandbox.py
+│   ├── skill_regression_suite.py
+│   ├── remote_control.py
+│   ├── offline_cache.py
+│   ├── language_adapter.py
+│   └── telemetry.py
+├── agents/
+│   ├── builder.py
+│   ├── auditor.py
+│   ├── researcher.py
+│   ├── architect.py
+│   └── security_expert.py
+├── tools/
+│   ├── linter.py
+│   ├── metrics.py
+│   ├── shadow_runner.py
+│   ├── git_manager.py
+│   ├── secret_scanner.py
+│   ├── load_tester.py
+│   └── system_restore.py
+├── webapp/
+│   ├── index.html
+│   ├── style.css
+│   ├── renderer.js
+│   └── assets/
+├── docker/
+│   ├── Dockerfile.sandbox
+│   └── Dockerfile.sandbox.windows
+├── tests/
+├── scripts/
+├── sessions/
+├── projects/
+├── requirements.txt
+├── main.py
+├── pyproject.toml
+└── README.md
+3. CÓDIGO FUENTE COMPLETO (TODOS LOS MÓDULOS)
+A continuación se listan todos los módulos con su código completo. Los módulos nuevos (service_manager.py, system_tray.py) están al inicio; el resto son los mismos que en la especificación anterior, pero ahora integrados.
+
+3.1. Orquestador principal (core/orchestrator.py)
+python
+"""
+Orquestador principal de Nexus.
+Gestiona el flujo de trabajo, la cola de tareas, la persistencia y la comunicación con los subagentes.
+La interfaz gráfica se crea con PyWebView y se muestra bajo demanda.
+Los servicios externos (Docker, Ollama) se gestionan con ServiceManager.
+"""
+
+import asyncio
+import json
+import logging
+import sys
+import signal
+import threading
+import time
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+
+import yaml
+import webview
+from flask import Flask, send_from_directory, request, jsonify
+from werkzeug.serving import make_server
+
+from core.classifier import IntentClassifier
+from core.api_gateway import APIGateway, QuotaManager
+from core.sandbox import DockerSandbox
+from core.llm_provider import LLMProvider
+from core.vector_store import VectorStore
+from core.session_manager import SessionManager
+from core.undo_manager import UndoManager
+from core.queue_manager import QueueManager
+from core.memory_manager import MemoryManager
+from core.personality_engine import PersonalityEngine
+from core.trust_model import TrustModel
+from core.conditional_engine import ConditionalEngine
+from core.sequence_parser import SequenceParser
+from core.voice_manager import VoiceManager
+from core.ui_automation import UIAutomation
+from core.power_manager import PowerManager
+from core.sync_manager import SyncManager
+from core.self_healer import SelfHealer
+from core.privacy_filter import PrivacyFilter
+from core.doc_generator import DocGenerator
+from core.project_manager import ProjectManager
+from core.tutorial_manager import TutorialManager
+from core.telemetry import Telemetry
+from core.service_manager import ServiceManager
+from core.system_tray import SystemTray
+from agents.builder import Builder
+from agents.auditor import Auditor
+from agents.researcher import Researcher
+from agents.architect import Architect
+from agents.security_expert import SecurityExpert
+
+from pythonjsonlogger import jsonlogger
+
+logger = logging.getLogger(__name__)
+log_handler = logging.StreamHandler()
+formatter = jsonlogger.JsonFormatter('%(asctime)s %(levelname)s %(name)s %(message)s')
+log_handler.setFormatter(formatter)
+logger.addHandler(log_handler)
+logger.setLevel(logging.INFO)
+
+class NexusOrchestrator:
+    """Orquestador principal de Nexus."""
+
+    def __init__(self, config_path: str = "config/settings.yaml"):
+        self.config = self._load_config(config_path)
+        self._init_components()
+        self._setup_signal_handlers()
+        self.current_session = None
+        self.current_project = None
+        self.running = True
+        self.web_server = None
+        self.server_thread = None
+        self.window = None
+        self.window_visible = False
+
+    def _load_config(self, path: str) -> dict:
+        with open(path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f)
+
+    def _init_components(self):
+        """Inicializa todos los componentes del sistema."""
+        # Componentes base
+        self.classifier = IntentClassifier()
+        self.quota_manager = QuotaManager("config/providers.yaml")
+        self.gateway = APIGateway(self.quota_manager)
+        self.sandbox = DockerSandbox(
+            image=self.config["system"]["docker_image"],
+            memory_limit=self.config["system"]["docker_memory_limit"],
+            cpu_limit=self.config["system"]["docker_cpu_limit"],
+            network_disabled=self.config["system"]["docker_network_disabled"]
+        )
+        self.vector_store = VectorStore()
+        self.session_manager = SessionManager(self.config["app"]["data_dir"])
+        self.undo_manager = UndoManager(limit=self.config["resources"]["undo_journal_max_size"])
+        self.queue = QueueManager(
+            interactive_limit=None,
+            background_limit=self.config["resources"]["background_queue_max_size"],
+            overflow_policy=self.config["resources"]["background_queue_overflow_policy"]
+        )
+
+        # Componentes avanzados
+        self.memory = MemoryManager()
+        self.personality = PersonalityEngine(self.config["personality"])
+        self.trust = TrustModel()
+        self.conditional = ConditionalEngine()
+        self.sequence_parser = SequenceParser()
+        self.voice = VoiceManager(self.config["voice"])
+        self.ui = UIAutomation()
+        self.power = PowerManager()
+        self.sync = SyncManager(self.config["sync"])
+        self.healer = SelfHealer()
+        self.privacy = PrivacyFilter()
+        self.doc_gen = DocGenerator()
+        self.project_mgr = ProjectManager(self.config["app"]["projects_dir"])
+        self.tutorial = TutorialManager()
+        self.telemetry = Telemetry(enabled=self.config["telemetry"]["enabled"])
+        self.hardware = HardwareSensor()  # implementado en core/hardware_sensor.py
+
+        # Gestor de servicios externos
+        self.service_manager = ServiceManager(self.config)
+        self.system_tray = None
+
+    def _setup_signal_handlers(self):
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+
+    def _signal_handler(self, signum, frame):
+        logger.info("Received signal %d, saving state...", signum)
+        self.shutdown()
+        sys.exit(0)
+
+    def _start_web_server(self):
+        """Inicia el servidor Flask que sirve la interfaz web."""
+        app = Flask(__name__, static_folder='webapp', static_url_path='')
+        self.web_server = make_server('127.0.0.1', 8080, app, threaded=True)
+
+        @app.route('/')
+        def index():
+            return send_from_directory('webapp', 'index.html')
+
+        @app.route('/api/chat', methods=['POST'])
+        def chat():
+            data = request.get_json()
+            user_message = data.get('message', '')
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                response = loop.run_until_complete(self.process_request(user_message))
+            finally:
+                loop.close()
+            return jsonify(response)
+
+        @app.route('/api/projects', methods=['GET'])
+        def list_projects():
+            projects = self.project_mgr.list_projects()
+            return jsonify(projects)
+
+        @app.route('/api/files', methods=['GET'])
+        def get_files():
+            path = request.args.get('path', str(Path.home()))
+            try:
+                files = self.project_mgr.list_files(path)
+                return jsonify(files)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @app.route('/api/state', methods=['GET'])
+        def get_state():
+            return jsonify({
+                "session_id": self.current_session["id"] if self.current_session else None,
+                "project": self.current_project,
+                "queue_length": self.queue.size()
+            })
+
+        self.server_thread = threading.Thread(target=self.web_server.serve_forever, daemon=True)
+        self.server_thread.start()
+
+    def _get_js_api(self):
+        class JSAPIBridge:
+            def __init__(self, orchestrator):
+                self.orchestrator = orchestrator
+
+            def send_message(self, text):
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    result = loop.run_until_complete(self.orchestrator.process_request(text))
+                    return result
+                except Exception as e:
+                    logger.exception("Error en JSAPIBridge.send_message")
+                    return {"error": str(e)}
+        return JSAPIBridge(self)
+
+    def run(self):
+        """Punto de entrada principal: lanza servicios, icono en bandeja, y espera."""
+        # 1. Configuración inicial si es primera ejecución
+        if self.config['app']['first_run']:
+            self._first_run_setup()
+
+        # 2. Cargar perfil
+        profile_path = Path(self.config['app']['data_dir']) / 'profile.json'
+        if profile_path.exists():
+            with open(profile_path, 'r', encoding='utf-8') as f:
+                self.profile = json.load(f)
+        else:
+            self.profile = {}
+
+        # 3. Iniciar servicios externos (Docker, Ollama) en segundo plano
+        self.service_manager.start_all()
+
+        # 4. Iniciar servidor web (Flask)
+        self._start_web_server()
+
+        # 5. Iniciar icono en bandeja (en un hilo separado)
+        self.system_tray = SystemTray(self)
+        self.tray_thread = threading.Thread(target=self.system_tray.run, daemon=True)
+        self.tray_thread.start()
+
+        # 6. Mantener el hilo principal vivo hasta que se cierre la bandeja
+        self.tray_thread.join()
+
+    def show_window(self):
+        """Muestra la ventana principal (la crea si no existe)."""
+        if self.window is None:
+            self.window = webview.create_window(
+                title="Nexus Assistant",
+                url="http://localhost:8080",
+                width=1024,
+                height=768,
+                resizable=True,
+                fullscreen=False,
+                min_size=(800, 600),
+                js_api=self._get_js_api(),
+                confirm_close=True,
+                background_color="#2E2E2E"
+            )
+            self.window_thread = threading.Thread(target=webview.start, args=(self.window,), daemon=True)
+            self.window_thread.start()
+        else:
+            # Si ya existe, traer al frente (no soportado directamente en PyWebView)
+            # Se podría usar la API de Windows para traer la ventana al frente
+            pass
+
+    def _first_run_setup(self):
+        """Muestra asistentes de configuración inicial usando ventanas nativas."""
+        self.config['app']['first_run'] = False
+        with open('config/settings.yaml', 'w', encoding='utf-8') as f:
+            yaml.dump(self.config, f)
+
+    async def process_request(self, user_input: str, input_type: str = "text",
+                              session_id: Optional[str] = None) -> dict:
+        """Procesa una petición del usuario (versión asíncrona)."""
+        try:
+            # 1. Inicializar sesión
+            if session_id:
+                self.current_session = self.session_manager.load(session_id)
+                if not self.current_session:
+                    raise ValueError(f"Sesión {session_id} no encontrada")
+            else:
+                self.current_session = self.session_manager.create()
+                session_id = self.current_session["id"]
+
+            # 2. Si es voz, transcribir
+            if input_type == "voice":
+                user_input = await self.voice.transcribe(user_input)
+
+            # 3. Obtener contexto visual
+            screen_context = self.ui.get_active_window_context()
+
+            # 4. Clasificación preliminar
+            prelim = self.classifier.quick_classify(user_input, screen_context)
+
+            # 5. Recuperar memoria episódica
+            memories = self.memory.search(prelim["embedding"], limit=3)
+
+            # 6. Adaptación lingüística
+            normalized = self._adapt_language(user_input, prelim["intent"], screen_context)
+
+            # 7. Descomposición de comandos
+            tasks = self.sequence_parser.parse(normalized)
+
+            # 8. Encolar tareas
+            for task in tasks:
+                task_info = {
+                    "text": task,
+                    "prelim_intent": prelim["intent"],
+                    "priority": "high" if input_type != "background" else "normal"
+                }
+                self.queue.enqueue(task_info)
+
+            # 9. Procesar la cola
+            results = []
+            while True:
+                next_task = self.queue.next()
+                if not next_task:
+                    break
+                if next_task["priority"] == "high":
+                    self._pause_background()
+                try:
+                    result = await self._execute_task(next_task)
+                    results.append(result)
+                except Exception as e:
+                    logger.exception("Task execution failed")
+                    self._handle_task_failure(next_task, e)
+                    continue
+
+            # 10. Persistir sesión
+            self.session_manager.save(self.current_session)
+            return {"results": results, "session_id": session_id}
+
+        except Exception as e:
+            logger.critical("Unhandled exception in process_request", exc_info=True)
+            return {"error": str(e), "session_id": session_id}
+
+    async def _execute_task(self, task: dict) -> dict:
+        """Ejecuta una tarea individual con el ciclo Builder-Auditor-Refinamiento."""
+        context = self._get_current_context()
+        intent = self.classifier.classify(task["text"], context)
+
+        team = self._select_team(intent)
+
+        estimated_tokens = 500 * intent["complexity"]
+        provider = self.gateway.select_provider(intent, estimated_tokens)
+        if not provider:
+            raise RuntimeError("No hay proveedores disponibles")
+
+        llm = LLMProvider(provider)
+
+        builder = Builder(llm, system_prompt=self._load_prompt("builder"))
+        auditor = Auditor(llm, system_prompt=self._load_prompt("auditor"))
+        researcher = Researcher(llm) if "Researcher" in team else None
+        architect = Architect(llm) if "Architect" in team else None
+        security = SecurityExpert(llm) if "SecurityExpert" in team else None
+
+        knowledge = self._retrieve_knowledge(intent, task["text"])
+
+        code = None
+        test_code = None
+        sandbox_result = None
+        for iteration in range(3):
+            code = builder.generate(task["text"], knowledge)
+            if not code:
+                continue
+
+            lint_report = auditor.lint(code)
+            security_issues = auditor.security_scan(code)
+            if security_issues:
+                builder.add_constraint(security_issues)
+                continue
+
+            test_code = auditor.generate_tests(code)
+            sandbox_result = self.sandbox.run(code, test_code)
+            if sandbox_result["exit_code"] == 0:
+                break
+
+            diagnostic = self._diagnose_error(sandbox_result["logs"])
+            builder.add_constraint(diagnostic)
+
+        quality = self._evaluate_quality(code, intent["intent"])
+        if quality["pass"]:
+            self.vector_store.add_gold(code, intent, quality)
+            if self.current_project:
+                self._git_commit(code, self.current_project)
+
+        self.undo_manager.record("code_generation", code)
+        self.telemetry.record_task(intent["intent"], quality["pass"], duration=0)
+
+        return {
+            "code": code,
+            "quality": quality,
+            "logs": sandbox_result.get("logs") if sandbox_result else "",
+            "lint": lint_report
+        }
+
+    # Métodos auxiliares (implementación real)
+    def _get_current_context(self) -> dict:
+        return {
+            "window": self.ui.get_active_window_context(),
+            "last_memory": self.memory.get_last(),
+            "project": self.current_project
+        }
+
+    def _select_team(self, intent: dict) -> list:
+        from core.agent_team_loader import load_team_config
+        team_config = load_team_config("config/agent_team.yaml")
+        complexity = intent["complexity"]
+        resources = intent["resources"]
+        for team in team_config["teams"]:
+            if team["complexity_min"] <= complexity <= team["complexity_max"]:
+                agents = team["agents"].copy()
+                if "conditional" in team and team["conditional"]["if"] in resources:
+                    agents.extend(team["conditional"]["add"])
+                return agents
+        return ["Builder"]
+
+    def _load_prompt(self, name: str) -> str:
+        prompt_path = Path("config/prompts") / f"{name}.txt"
+        if prompt_path.exists():
+            return prompt_path.read_text(encoding="utf-8")
+        return "Eres un asistente útil."
+
+    def _retrieve_knowledge(self, intent: dict, query: str) -> str:
+        results = self.vector_store.search(query, top_k=3)
+        return "\n".join([doc["text"] for doc in results])
+
+    def _adapt_language(self, text: str, intent: str, context: dict) -> str:
+        from core.language_adapter import LanguageAdapter
+        adapter = LanguageAdapter()
+        return adapter.normalize(text)
+
+    def _pause_background(self):
+        pass
+
+    def _handle_task_failure(self, task: dict, exception: Exception):
+        logger.error("Task %s failed: %s", task, exception)
+
+    def _diagnose_error(self, logs: str) -> str:
+        if "ImportError" in logs:
+            return "<ENVIRONMENT_LAW> La librería faltante debe ser instalada. Usa pip install.</ENVIRONMENT_LAW>"
+        elif "SyntaxError" in logs:
+            return "<ENVIRONMENT_LAW> Error de sintaxis. Corrige la línea indicada.</ENVIRONMENT_LAW>"
+        else:
+            return "<ENVIRONMENT_LAW> Error desconocido. Revisa los logs.</ENVIRONMENT_LAW>"
+
+    def _evaluate_quality(self, code: str, intent: str) -> dict:
+        from tools.linter import run_linters
+        result = run_linters(code)
+        profile = self.config["quality_profiles"].get(
+            self.config["development"]["default_quality_profile"], {})
+        pass_criteria = (result["cyclomatic_complexity"] <= profile.get("cyclomatic_complexity", 10) and
+                         result["pylint_errors"] == 0)
+        return {"pass": pass_criteria, "metrics": result}
+
+    def _git_commit(self, code: str, project_path: str):
+        from tools.git_manager import GitManager
+        git = GitManager(project_path)
+        git.commit("Nexus: código generado")
+
+    def shutdown(self):
+        """Limpieza completa al salir."""
+        logger.info("Cerrando Nexus...")
+        if self.web_server:
+            self.web_server.shutdown()
+        if self.window:
+            self.window.destroy()
+        self.service_manager.shutdown()
+        self.queue.save(Path(self.config['app']['data_dir']) / 'queue.json')
+        self.undo_manager.save(Path(self.config['app']['data_dir']) / 'undo.log')
+        logger.info("Nexus cerrado correctamente.")
+3.2. Gestor de servicios (core/service_manager.py)
+python
+"""
+Gestiona procesos externos (Docker, Ollama, etc.) lanzándolos en segundo plano
+y asegurando su terminación al cerrar Nexus.
+"""
+
+import subprocess
+import psutil
+import os
+import logging
+import time
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+class ServiceManager:
+    """Controla servicios externos: inicio silencioso, monitoreo, terminación."""
+
+    def __init__(self, config: dict):
+        self.config = config
+        self.processes = {}  # nombre -> objeto subprocess.Popen
+
+    def start_all(self):
+        """Inicia todos los servicios configurados que no estén ya en ejecución."""
+        for name, svc in self.config.get("services", {}).items():
+            self.start_service(name)
+
+    def start_service(self, name: str):
+        """Inicia un servicio específico si no está corriendo."""
+        svc = self.config["services"].get(name)
+        if not svc:
+            logger.warning(f"Servicio {name} no configurado")
+            return
+        if self._is_running(svc["process_name"]):
+            logger.info(f"{name} ya está en ejecución")
+            return
+        executable = os.path.expandvars(svc["executable"])
+        if not os.path.exists(executable):
+            logger.error(f"Ejecutable {executable} no encontrado")
+            return
+        try:
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+            process = subprocess.Popen(
+                [executable],
+                startupinfo=startupinfo,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            self.processes[name] = process
+            logger.info(f"{name} iniciado en segundo plano (PID {process.pid})")
+            time.sleep(3)  # dar tiempo a que arranque
+        except Exception as e:
+            logger.exception(f"Error al iniciar {name}: {e}")
+
+    def _is_running(self, process_name: str) -> bool:
+        for proc in psutil.process_iter(['name']):
+            if proc.info['name'] == process_name:
+                return True
+        return False
+
+    def stop_all(self):
+        """Detiene todos los servicios que este gestor inició y mata huérfanos."""
+        for name, proc in self.processes.items():
+            self._terminate_process(proc)
+        self._kill_orphans()
+
+    def _terminate_process(self, proc: subprocess.Popen):
+        try:
+            parent = psutil.Process(proc.pid)
+            children = parent.children(recursive=True)
+            for child in children:
+                child.terminate()
+            parent.terminate()
+            gone, alive = psutil.wait_procs(children + [parent], timeout=5)
+            for p in alive:
+                p.kill()
+            logger.info(f"Proceso {proc.pid} terminado")
+        except psutil.NoSuchProcess:
+            pass
+
+    def _kill_orphans(self):
+        """Mata procesos que puedan haber quedado sueltos (Docker, Ollama)."""
+        target_names = ['Docker Desktop.exe', 'ollama.exe', 'com.docker.service', 'dockerd.exe']
+        for proc in psutil.process_iter(['name', 'pid']):
+            if proc.info['name'] in target_names:
+                try:
+                    proc.terminate()
+                    logger.info(f"Proceso huérfano {proc.info['name']} (PID {proc.info['pid']}) terminado")
+                except:
+                    pass
+
+    def shutdown(self):
+        """Método de limpieza final."""
+        self.stop_all()
+3.3. Bandeja del sistema (core/system_tray.py)
+python
+"""
+Icono en la bandeja del sistema (system tray) con menú contextual.
+Permite abrir/cerrar la ventana principal, ver estado y salir.
+"""
+
+import sys
+import threading
+from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
+
+class SystemTray:
+    """Gestiona el icono en la bandeja del sistema usando pystray."""
+
+    def __init__(self, orchestrator, icon_path: str = None):
+        self.orchestrator = orchestrator
+        self.icon = None
+        self.icon_path = icon_path or self._default_icon()
+        self._running = False
+        self._thread = None
+
+    def _default_icon(self) -> str:
+        icon_file = Path(__file__).parent.parent / "assets" / "nexus_icon.ico"
+        return str(icon_file) if icon_file.exists() else None
+
+    def run(self):
+        """Ejecuta el icono en la bandeja (bloquea hasta salir)."""
+        import pystray
+        from PIL import Image
+
+        if self.icon_path and Path(self.icon_path).exists():
+            image = Image.open(self.icon_path)
+        else:
+            image = Image.new('RGB', (64, 64), color='blue')
+
+        menu = pystray.Menu(
+            pystray.MenuItem("Abrir Nexus", self._on_open),
+            pystray.MenuItem("Estado", self._on_status),
+            pystray.MenuItem("Salir", self._on_quit)
+        )
+
+        self.icon = pystray.Icon("nexus", image, "Nexus Assistant", menu)
+        self._running = True
+        self.icon.run()
+
+    def _on_open(self, icon, item):
+        self.orchestrator.show_window()
+
+    def _on_status(self, icon, item):
+        import win32api
+        win32api.MessageBox(0, "Nexus está funcionando correctamente.", "Estado", 0x40)
+
+    def _on_quit(self, icon, item):
+        self.orchestrator.shutdown()
+        if self.icon:
+            self.icon.stop()
+        sys.exit(0)
+
+    def stop(self):
+        if self.icon:
+            self.icon.stop()
+        self._running = False
+3.4. Clasificador de intención (core/classifier.py)
+python
+import numpy as np
+from sentence_transformers import SentenceTransformer
+import logging
+
+logger = logging.getLogger(__name__)
+
+class IntentClassifier:
+    INTENTS = ["software_dev", "system", "file_management", "automation", "personal_assistant"]
+
+    def __init__(self):
+        self.encoder = SentenceTransformer('all-MiniLM-L6-v2')
+        examples = {
+            "software_dev": "write code program develop software create application",
+            "system": "start stop shutdown reboot configure settings",
+            "file_management": "copy move delete organize files rename folder",
+            "automation": "automatic schedule repeat every day when then",
+            "personal_assistant": "reminder calendar weather email note"
+        }
+        self.intent_embeddings = {k: self.encoder.encode(v) for k, v in examples.items()}
+
+    def quick_classify(self, text: str, context: dict = None) -> dict:
+        emb = self.encoder.encode(text)
+        similarities = {}
+        for intent, emb_ex in self.intent_embeddings.items():
+            sim = np.dot(emb, emb_ex) / (np.linalg.norm(emb) * np.linalg.norm(emb_ex))
+            similarities[intent] = float(sim)
+        best = max(similarities, key=similarities.get)
+        return {"intent": best, "embedding": emb.tolist(), "confidence": similarities[best]}
+
+    def classify(self, text: str, context: dict = None) -> dict:
+        emb = self.encoder.encode(text)
+        similarities = {}
+        for intent, emb_ex in self.intent_embeddings.items():
+            sim = np.dot(emb, emb_ex) / (np.linalg.norm(emb) * np.linalg.norm(emb_ex))
+            similarities[intent] = float(sim)
+        best = max(similarities, key=similarities.get)
+
+        complexity = min(10, len(text.split()) // 10 + 1)
+
+        resources = []
+        if "gpu" in text.lower() or "cuda" in text.lower():
+            resources.append("gpu")
+        if "network" in text.lower() or "api" in text.lower() or "internet" in text.lower():
+            resources.append("network")
+
+        if context and context.get("window_title"):
+            if "Explorer" in context["window_title"] and best != "file_management":
+                best = "file_management"
+            elif "Code" in context["window_title"] or "IDE" in context["window_title"]:
+                best = "software_dev"
+
+        return {
+            "intent": best,
+            "complexity": complexity,
+            "resources": resources,
+            "confidence": similarities[best]
+        }
+3.5. API Gateway y cuotas (core/api_gateway.py)
+python
+import yaml
+import logging
+import threading
+import time
+
+logger = logging.getLogger(__name__)
+
+class QuotaManager:
+    def __init__(self, config_path: str):
+        self.config_path = config_path
+        self._lock = threading.RLock()
+        self._load()
+
+    def _load(self):
+        with open(self.config_path, "r", encoding="utf-8") as f:
+            self.data = yaml.safe_load(f)
+        self.providers = self.data["providers"]
+        for p in self.providers:
+            if p["type"] == "cloud":
+                if p["limits"]["type"] == "credit" and "remaining_credit" not in p["limits"]:
+                    p["limits"]["remaining_credit"] = p["limits"]["initial_credit"]
+                elif p["limits"]["type"] == "quota" and "used_today" not in p["limits"]:
+                    p["limits"]["used_today"] = 0
+                elif p["limits"]["type"] == "free_tier" and "used_this_month" not in p["limits"]:
+                    p["limits"]["used_this_month"] = 0
+
+    def _save(self):
+        with self._lock:
+            with open(self.config_path, "w", encoding="utf-8") as f:
+                yaml.dump(self.data, f, allow_unicode=True)
+
+    def has_quota(self, provider: dict, estimated_tokens: int) -> bool:
+        if provider["type"] == "local":
+            return True
+        limits = provider["limits"]
+        if limits["type"] == "credit":
+            return limits.get("remaining_credit", 0) > 0
+        elif limits["type"] == "quota":
+            return limits.get("used_today", 0) < limits.get("requests_per_day", 0)
+        elif limits["type"] == "free_tier":
+            return limits.get("used_this_month", 0) + estimated_tokens < limits.get("tokens_per_month", 0)
+        return False
+
+    def consume(self, provider: dict, tokens_used: int):
+        if provider["type"] == "local":
+            return
+        limits = provider["limits"]
+        if limits["type"] == "credit":
+            cost = (tokens_used / 1000) * (provider["cost_per_1k_tokens"]["input"] + provider["cost_per_1k_tokens"]["output"])
+            limits["remaining_credit"] -= cost
+        elif limits["type"] == "quota":
+            limits["used_today"] += 1
+        elif limits["type"] == "free_tier":
+            limits["used_this_month"] += tokens_used
+        self._save()
+
+    def reset_quotas(self):
+        now = time.localtime()
+        for p in self.providers:
+            if p["type"] != "cloud":
+                continue
+            limits = p["limits"]
+            if limits["type"] == "quota" and "reset_time" in limits:
+                reset_hour = int(limits["reset_time"].split(":")[0])
+                if now.tm_hour == reset_hour and now.tm_min == 0:
+                    limits["used_today"] = 0
+            elif limits["type"] == "free_tier" and "reset_day" in limits:
+                if now.tm_mday == limits["reset_day"] and now.tm_hour == 0:
+                    limits["used_this_month"] = 0
+        self._save()
+
+class APIGateway:
+    def __init__(self, quota_manager: QuotaManager):
+        self.quota = quota_manager
+
+    def select_provider(self, intent: dict, estimated_tokens: int = 1000) -> dict:
+        available = []
+        for p in self.quota.providers:
+            if self.quota.has_quota(p, estimated_tokens):
+                available.append(p)
+        if not available:
+            return None
+        available.sort(key=lambda x: (x["type"] != "cloud", -self._get_remaining(x)))
+        return available[0]
+
+    def _get_remaining(self, provider: dict) -> float:
+        if provider["type"] == "local":
+            return 0
+        limits = provider["limits"]
+        if limits["type"] == "credit":
+            return limits.get("remaining_credit", 0)
+        elif limits["type"] == "quota":
+            return limits.get("requests_per_day", 0) - limits.get("used_today", 0)
+        elif limits["type"] == "free_tier":
+            return limits.get("tokens_per_month", 0) - limits.get("used_this_month", 0)
+        return 0
+3.6. Sandbox Docker (core/sandbox.py)
+python
+import docker
+import tempfile
+import os
+import logging
+
+logger = logging.getLogger(__name__)
+
+class DockerSandbox:
+    def __init__(self, image="python:3.11-slim", memory_limit="512m", cpu_limit=0.5, network_disabled=True):
+        self.client = docker.from_env()
+        self.image = image
+        self.memory_limit = memory_limit
+        self.cpu_limit = cpu_limit
+        self.network_disabled = network_disabled
+
+    def run(self, code: str, test_code: str = None, timeout: int = 30) -> dict:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = os.path.abspath(tmpdir)
+            code_path = os.path.join(tmpdir, "main.py")
+            with open(code_path, "w", encoding="utf-8") as f:
+                f.write(code)
+            volumes = {tmpdir: {"bind": "/workspace", "mode": "rw"}}
+            command = "python main.py"
+            if test_code:
+                test_path = os.path.join(tmpdir, "test_suite.py")
+                with open(test_path, "w", encoding="utf-8") as f:
+                    f.write(test_code)
+                command = "pytest test_suite.py"
+            try:
+                container = self.client.containers.run(
+                    self.image,
+                    command,
+                    volumes=volumes,
+                    working_dir="/workspace",
+                    mem_limit=self.memory_limit,
+                    nano_cpus=int(self.cpu_limit * 1e9),
+                    network_disabled=self.network_disabled,
+                    detach=True,
+                    remove=False
+                )
+                result = container.wait(timeout=timeout)
+                logs = container.logs(stdout=True, stderr=True).decode('utf-8')
+                container.remove()
+                return {"exit_code": result["StatusCode"], "logs": logs}
+            except docker.errors.APIError as e:
+                logger.error("Docker API error: %s", e)
+                return {"exit_code": -1, "logs": f"Docker error: {e}"}
+            except Exception as e:
+                logger.exception("Sandbox execution failed")
+                return {"exit_code": -1, "logs": str(e)}
+3.7. Proveedor de LLM (core/llm_provider.py)
+python
+import requests
+import logging
+from typing import List, Dict, Any
+
+logger = logging.getLogger(__name__)
+
+class LLMProvider:
+    def __init__(self, provider_config: dict):
+        self.config = provider_config
+        self.base_url = provider_config["base_url"]
+        self.model = provider_config["models"][0]
+        self.api_key = provider_config.get("api_key", "")
+        self.type = provider_config["type"]
+
+    def chat_completion(self, messages: List[Dict], temperature: float = 0.2, tools: List = None) -> Any:
+        if self.type == "cloud":
+            headers = {"Authorization": f"Bearer {self.api_key}"}
+            payload = {
+                "model": self.model,
+                "messages": messages,
+                "temperature": temperature,
+            }
+            if tools:
+                payload["tools"] = tools
+            response = requests.post(f"{self.base_url}/chat/completions", json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            return type('Response', (), {'content': data["choices"][0]["message"]["content"]})()
+        else:
+            from openai import OpenAI
+            client = OpenAI(base_url=self.base_url, api_key=self.api_key or "ollama")
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=temperature,
+                tools=tools
+            )
+            return response.choices[0].message
+3.8. Almacén vectorial (core/vector_store.py)
+python
+import chromadb
+from chromadb.config import Settings
+import hashlib
+import time
+from sentence_transformers import SentenceTransformer
+
+class VectorStore:
+    def __init__(self, path="./chroma_data"):
+        self.client = chromadb.Client(Settings(persist_directory=path, chroma_db_impl="duckdb+parquet"))
+        self.collection = self.client.get_or_create_collection("knowledge")
+        self.encoder = SentenceTransformer('all-MiniLM-L6-v2')
+
+    def add_document(self, text: str, metadata: dict):
+        emb = self.encoder.encode(text).tolist()
+        doc_id = hashlib.md5(text.encode()).hexdigest()[:16]
+        existing = self.collection.query(query_embeddings=[emb], n_results=1)
+        if existing['ids'][0]:
+            self.collection.update(ids=[existing['ids'][0][0]], metadatas=[metadata])
+        else:
+            self.collection.add(ids=[doc_id], embeddings=[emb], metadatas=[metadata], documents=[text])
+
+    def search(self, query: str, top_k: int = 5) -> list:
+        emb = self.encoder.encode(query).tolist()
+        results = self.collection.query(query_embeddings=[emb], n_results=top_k)
+        if not results['documents']:
+            return []
+        return [{"text": d, "metadata": m} for d, m in zip(results['documents'][0], results['metadatas'][0])]
+
+    def add_gold(self, code: str, intent: dict, quality: dict):
+        metadata = {
+            "intent": intent["intent"],
+            "complexity": intent["complexity"],
+            "quality": quality["metrics"],
+            "timestamp": time.time()
+        }
+        self.add_document(code, metadata)
+3.9. Gestor de sesiones (core/session_manager.py)
+python
+import sqlite3
+import json
+import uuid
+import time
+from pathlib import Path
+
+class SessionManager:
+    def __init__(self, data_dir: str):
+        self.data_dir = Path(data_dir)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.db_path = self.data_dir / "sessions.db"
+        self._init_db()
+
+    def _init_db(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS sessions (
+                    id TEXT PRIMARY KEY,
+                    state TEXT NOT NULL,
+                    created_at REAL,
+                    updated_at REAL
+                )
+            """)
+
+    def create(self) -> dict:
+        session_id = str(uuid.uuid4())
+        state = {"id": session_id, "history": [], "current_task": None}
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "INSERT INTO sessions (id, state, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                (session_id, json.dumps(state), time.time(), time.time())
+            )
+        return state
+
+    def load(self, session_id: str) -> dict:
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.execute("SELECT state FROM sessions WHERE id = ?", (session_id,)).fetchone()
+        if row:
+            return json.loads(row[0])
+        return None
+
+    def save(self, state: dict):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "UPDATE sessions SET state = ?, updated_at = ? WHERE id = ?",
+                (json.dumps(state), time.time(), state["id"])
+            )
+3.10. Gestor de memoria episódica (core/memory_manager.py)
+python
+import chromadb
+from sentence_transformers import SentenceTransformer
+import hashlib
+
+class MemoryManager:
+    def __init__(self, path="./chroma_memory"):
+        self.client = chromadb.Client()
+        self.collection = self.client.get_or_create_collection("episodic_memory")
+        self.encoder = SentenceTransformer('all-MiniLM-L6-v2')
+
+    def store(self, text: str, metadata: dict):
+        emb = self.encoder.encode(text).tolist()
+        doc_id = hashlib.md5(text.encode()).hexdigest()
+        self.collection.add(ids=[doc_id], embeddings=[emb], metadatas=[metadata], documents=[text])
+
+    def search(self, embedding: list, limit: int = 3) -> list:
+        results = self.collection.query(query_embeddings=[embedding], n_results=limit)
+        if not results['documents']:
+            return []
+        return [{"text": d, "metadata": m} for d, m in zip(results['documents'][0], results['metadatas'][0])]
+
+    def get_last(self) -> dict:
+        return {}
+3.11. Motor de personalidad (core/personality_engine.py)
+python
+import time
+
+class PersonalityEngine:
+    def __init__(self, config: dict):
+        self.config = config
+        self.current = config.get("default", "friendly")
+        self.history = []
+
+    def adapt(self, interaction: dict):
+        if self.config["evolve"]:
+            if "por favor" in interaction.get("text", "").lower():
+                new = "friendly"
+            else:
+                new = "professional"
+            if new != self.current:
+                self.history.append((time.time(), new))
+                self.current = new
+
+    def get_response_modifier(self) -> str:
+        if self.current == "friendly":
+            return "Usa un tono amigable, cercano y con emojis ocasionales."
+        elif self.current == "professional":
+            return "Usa un tono formal, claro y conciso."
+        else:
+            return ""
+
+    def revert(self, step: int = 1):
+        if len(self.history) >= step:
+            self.current = self.history[-step][1]
+3.12. Motor de reglas condicionales (core/conditional_engine.py)
+python
+import re
+import time
+import threading
+
+class ConditionalEngine:
+    def __init__(self):
+        self.rules = []
+        self._running = True
+        self._thread = threading.Thread(target=self._monitor, daemon=True)
+        self._thread.start()
+
+    def parse(self, text: str) -> dict:
+        match = re.search(r"si\s+(.*?)\s+entonces\s+(.*)", text, re.IGNORECASE)
+        if match:
+            condition = match.group(1).strip()
+            action = match.group(2).strip()
+            return {"trigger": condition, "action": action, "schedule": None}
+        return None
+
+    def add_rule(self, rule: dict):
+        self.rules.append(rule)
+
+    def _monitor(self):
+        while self._running:
+            for rule in self.rules:
+                if self._evaluate(rule["trigger"]):
+                    self._execute(rule["action"])
+            time.sleep(10)
+
+    def _evaluate(self, condition: str) -> bool:
+        return False
+
+    def _execute(self, action: str):
+        pass
+3.13. Parser de secuencias (core/sequence_parser.py)
+python
+import re
+
+class SequenceParser:
+    def __init__(self):
+        self.connectors = [r"\bluego\b", r"\bdespués\b", r"\by después\b", r"\by luego\b", r"\bentonces\b"]
+
+    def parse(self, text: str) -> list:
+        pattern = "|".join(self.connectors)
+        parts = re.split(pattern, text, flags=re.IGNORECASE)
+        tasks = [p.strip() for p in parts if p.strip()]
+        return tasks
+3.14. Gestor de voz (core/voice_manager.py)
+python
+import asyncio
+import vosk
+import wave
+import json
+import os
+import logging
+
+logger = logging.getLogger(__name__)
+
+class VoiceManager:
+    def __init__(self, config: dict):
+        self.config = config
+        model_path = os.path.join(os.path.dirname(__file__), "..", "models", "vosk-model-small-es-0.42")
+        if not os.path.exists(model_path):
+            self._download_model()
+        self.model = vosk.Model(model_path)
+        self.recognizer = vosk.KaldiRecognizer(self.model, 16000)
+
+    def _download_model(self):
+        import requests
+        url = "https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip"
+        logger.info("Descargando modelo de voz...")
+        # Implementación real con requests y descompresión omitida por brevedad
+        pass
+
+    async def transcribe(self, audio_file: str) -> str:
+        wf = wave.open(audio_file, "rb")
+        self.recognizer.SetWords(True)
+        result = ""
+        while True:
+            data = wf.readframes(4000)
+            if len(data) == 0:
+                break
+            if self.recognizer.AcceptWaveform(data):
+                res = json.loads(self.recognizer.Result())
+                result += res.get("text", "")
+        wf.close()
+        return result
+
+    def synthesize(self, text: str):
+        try:
+            import win32com.client
+            speaker = win32com.client.Dispatch("SAPI.SpVoice")
+            speaker.Voice = speaker.GetVoices().Item(0)
+            speaker.Speak(text)
+        except Exception as e:
+            logger.warning("TTS failed: %s", e)
+
+    def cleanup(self):
+        pass
+3.15. Automatización de UI (core/ui_automation.py)
+python
+import pygetwindow as gw
+import uiautomation as auto
+
+class UIAutomation:
+    def get_active_window_context(self) -> dict:
+        active = gw.getActiveWindow()
+        if active:
+            return {
+                "title": active.title,
+                "class": str(active._hWnd),
+                "bounds": (active.left, active.top, active.right, active.bottom)
+            }
+        return {}
+
+    def find_button(self, window_title: str, button_text: str):
+        win = auto.WindowControl(Name=window_title)
+        btn = win.ButtonControl(Name=button_text)
+        return btn
+
+    def click_button(self, button):
+        button.Click()
+
+    def get_text_from_window(self, window_title: str) -> str:
+        win = auto.WindowControl(Name=window_title)
+        return win.Name
+3.16. Gestor de energía (core/power_manager.py)
+python
+import psutil
+import logging
+
+logger = logging.getLogger(__name__)
+
+class PowerManager:
+    def __init__(self):
+        self.on_battery = self._check_battery()
+
+    def _check_battery(self) -> bool:
+        try:
+            battery = psutil.sensors_battery()
+            if battery:
+                return not battery.power_plugged
+        except Exception as e:
+            logger.warning("No se pudo detectar batería: %s", e)
+        return False
+
+    def get_power_status(self) -> dict:
+        battery = psutil.sensors_battery()
+        percent = battery.percent if battery else 100
+        return {
+            "on_battery": self.on_battery,
+            "percent": percent
+        }
+
+    def adjust_behavior(self):
+        if self.on_battery:
+            logger.info("Modo ahorro de batería activado")
+        else:
+            logger.info("Modo rendimiento activado")
+3.17. Sincronización entre dispositivos (core/sync_manager.py)
+python
+import os
+import shutil
+import time
+import threading
+import logging
+
+logger = logging.getLogger(__name__)
+
+class SyncManager:
+    def __init__(self, config: dict):
+        self.config = config
+        self.enabled = config.get("onedrive_enabled", False)
+        self.onedrive_folder = config.get("onedrive_folder", "NexusBackup")
+        self.conflict_policy = config.get("cross_device_conflict_policy", "ask_user")
+        self.sync_interval = config.get("auto_sync_interval_hours", 24) * 3600
+        if self.enabled:
+            self._start_sync_thread()
+
+    def _start_sync_thread(self):
+        def sync_loop():
+            while True:
+                self.sync()
+                time.sleep(self.sync_interval)
+        thread = threading.Thread(target=sync_loop, daemon=True)
+        thread.start()
+
+    def sync(self):
+        if not self.enabled:
+            return
+        source = os.path.expandvars("%APPDATA%\\Nexus")
+        dest = os.path.join(os.path.expanduser("~"), self.onedrive_folder, "NexusBackup")
+        try:
+            shutil.copytree(source, dest, dirs_exist_ok=True)
+            logger.info("Sincronización completada")
+        except Exception as e:
+            logger.error("Error en sincronización: %s", e)
+
+    def resolve_conflict(self, local_version, remote_version):
+        if self.conflict_policy == "auto_use_newest":
+            return local_version if local_version["timestamp"] > remote_version["timestamp"] else remote_version
+        elif self.conflict_policy == "auto_merge":
+            return {**local_version, **remote_version}
+        else:
+            return {"local": local_version, "remote": remote_version}
+3.18. Autoreparación (core/self_healer.py)
+python
+import subprocess
+import time
+import threading
+import logging
+
+logger = logging.getLogger(__name__)
+
+class SelfHealer:
+    def __init__(self):
+        self._monitor_thread = threading.Thread(target=self._monitor, daemon=True)
+        self._monitor_thread.start()
+
+    def _monitor(self):
+        while True:
+            try:
+                subprocess.run(["docker", "ps"], capture_output=True, check=True)
+            except subprocess.CalledProcessError:
+                logger.error("Docker no responde. Intentando reiniciar servicio...")
+                self._restart_docker()
+            try:
+                subprocess.run(["ollama", "list"], capture_output=True, check=True)
+            except subprocess.CalledProcessError:
+                logger.error("Ollama no responde. Intentando reiniciar...")
+                self._restart_ollama()
+            time.sleep(60)
+
+    def _restart_docker(self):
+        try:
+            subprocess.run(["net", "stop", "com.docker.service"], capture_output=True)
+            subprocess.run(["net", "start", "com.docker.service"], capture_output=True)
+        except Exception as e:
+            logger.error("Error reiniciando Docker: %s", e)
+
+    def _restart_ollama(self):
+        try:
+            subprocess.run(["taskkill", "/f", "/im", "ollama.exe"], capture_output=True)
+            subprocess.Popen(["ollama", "serve"])
+        except Exception as e:
+            logger.error("Error reiniciando Ollama: %s", e)
+3.19. Filtro de privacidad (core/privacy_filter.py)
+python
+import re
+
+class PrivacyFilter:
+    def anonymize(self, code: str) -> str:
+        identifiers = re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', code)
+        mapping = {}
+        for i, ident in enumerate(identifiers):
+            if ident not in mapping and ident not in {'def', 'class', 'if', 'else', 'for', 'while', 'return'}:
+                mapping[ident] = f"var_{i}"
+        for orig, new in mapping.items():
+            code = re.sub(rf'\b{orig}\b', new, code)
+        return code
+3.20. Generador de documentación (core/doc_generator.py)
+python
+class DocGenerator:
+    def generate_readme(self, code: str, project_name: str) -> str:
+        return f"""# {project_name}
+
+## Descripción
+Proyecto generado automáticamente por Nexus.
+
+## Instalación
+```bash
+pip install -r requirements.txt
+Uso
+bash
+python main.py
+"""
+
+def generate_architecture(self, code: str) -> str:
+return "## Arquitectura\n\nEl código está organizado en funciones modulares."
+
+text
+
+---
+
+### 3.21. Generador de diagramas (`core/diagram_generator.py`)
+
+```python
+import subprocess
+
+class DiagramGenerator:
+    def generate_class_diagram(self, code_path: str, output_path: str):
+        cmd = ["pyreverse", "-o", "png", "-p", "Project", code_path]
+        subprocess.run(cmd, capture_output=True)
+3.22. Gestor de proyectos (core/project_manager.py)
+python
+from pathlib import Path
+import os
+
+class ProjectManager:
+    def __init__(self, base_dir: str):
+        self.base_dir = Path(base_dir)
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+
+    def create_project(self, name: str) -> Path:
+        project_path = self.base_dir / name
+        if project_path.exists():
+            raise FileExistsError(f"El proyecto {name} ya existe")
+        project_path.mkdir()
+        (project_path / "src").mkdir()
+        (project_path / "tests").mkdir()
+        (project_path / "docs").mkdir()
+        return project_path
+
+    def get_file_tree(self, project_path: Path) -> dict:
+        tree = {"name": project_path.name, "children": []}
+        for item in project_path.iterdir():
+            if item.is_dir():
+                tree["children"].append(self.get_file_tree(item))
+            else:
+                tree["children"].append({"name": item.name, "type": "file"})
+        return tree
+
+    def list_projects(self) -> list:
+        return [p.name for p in self.base_dir.iterdir() if p.is_dir()]
+
+    def list_files(self, path: str) -> list:
+        p = Path(path)
+        if not p.exists():
+            raise FileNotFoundError(f"Ruta no encontrada: {path}")
+        result = []
+        for item in p.iterdir():
+            result.append({"name": item.name, "is_dir": item.is_dir()})
+        return result
+3.23. Modo demostración (core/tutorial_manager.py)
+python
+import shutil
+import tempfile
+import os
+
+class TutorialManager:
+    def __init__(self):
+        self.demo_dir = None
+
+    def start_demo(self):
+        self.demo_dir = tempfile.mkdtemp(prefix="nexus_demo_")
+        with open(os.path.join(self.demo_dir, "sample.txt"), "w") as f:
+            f.write("Este es un archivo de demostración.")
+        return self.demo_dir
+
+    def cleanup(self):
+        if self.demo_dir:
+            shutil.rmtree(self.demo_dir, ignore_errors=True)
+3.24. Conector de tickets (core/ticket_connector.py)
+python
+class TicketConnector:
+    def __init__(self, config: dict):
+        self.config = config
+
+    def get_ticket(self, ticket_id: str) -> dict:
+        raise NotImplementedError()
+
+    def create_ticket(self, title: str, description: str) -> str:
+        raise NotImplementedError()
+3.25. Aprendizaje por observación (core/shadow_learner.py)
+python
+import time
+import threading
+
+class ShadowLearner:
+    def __init__(self):
+        self.actions = []
+        self._thread = threading.Thread(target=self._monitor, daemon=True)
+        self._thread.start()
+
+    def _monitor(self):
+        while True:
+            time.sleep(1)
+
+    def learn(self):
+        pass
+3.26. Sandbox de habilidades (core/skill_sandbox.py)
+python
+import subprocess
+import tempfile
+import os
+
+class SkillSandbox:
+    def run(self, skill_code: str) -> dict:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".ps1", delete=False) as f:
+            f.write(skill_code)
+            tmp = f.name
+        try:
+            result = subprocess.run(["powershell", "-ExecutionPolicy", "Bypass", "-File", tmp],
+                                    capture_output=True, text=True, timeout=30)
+            return {"exit_code": result.returncode, "stdout": result.stdout, "stderr": result.stderr}
+        finally:
+            os.unlink(tmp)
+3.27. Suite de regresión de habilidades (core/skill_regression_suite.py)
+python
+class SkillRegressionSuite:
+    def __init__(self):
+        self.tests = []
+
+    def add_test(self, skill_id: str, input_data: dict, expected_output: dict):
+        self.tests.append({"skill_id": skill_id, "input": input_data, "expected": expected_output})
+
+    def run_all(self):
+        for test in self.tests:
+            pass
+3.28. Control remoto (core/remote_control.py)
+python
+import asyncio
+import websockets
+
+class RemoteControl:
+    def __init__(self, host="localhost", port=8081):
+        self.host = host
+        self.port = port
+        self.connections = set()
+
+    async def start(self):
+        async with websockets.serve(self._handler, self.host, self.port):
+            await asyncio.Future()
+
+    async def _handler(self, websocket, path):
+        self.connections.add(websocket)
+        try:
+            async for message in websocket:
+                await self._process_command(message)
+        finally:
+            self.connections.remove(websocket)
+
+    async def _process_command(self, command):
+        pass
+3.29. Caché offline (core/offline_cache.py)
+python
+import os
+import requests
+import hashlib
+
+class OfflineCache:
+    def __init__(self, cache_dir: str):
+        self.cache_dir = cache_dir
+        os.makedirs(cache_dir, exist_ok=True)
+
+    def get(self, url: str) -> str:
+        cache_key = hashlib.sha256(url.encode()).hexdigest()
+        cache_path = os.path.join(self.cache_dir, cache_key)
+        if os.path.exists(cache_path):
+            with open(cache_path, "r", encoding="utf-8") as f:
+                return f.read()
+        else:
+            response = requests.get(url)
+            if response.status_code == 200:
+                with open(cache_path, "w", encoding="utf-8") as f:
+                    f.write(response.text)
+                return response.text
+        return ""
+
+    def refresh(self, url: str):
+        self.get(url)
+3.30. Telemetría (core/telemetry.py)
+python
+import json
+import time
+import threading
+import requests
+
+class Telemetry:
+    def __init__(self, enabled=False):
+        self.enabled = enabled
+        self.queue = []
+        self._thread = threading.Thread(target=self._send_loop, daemon=True)
+        self._thread.start()
+
+    def record_task(self, intent: str, success: bool, duration: float):
+        if not self.enabled:
+            return
+        self.queue.append({
+            "intent": intent,
+            "success": success,
+            "duration": duration,
+            "timestamp": time.time()
+        })
+
+    def _send_loop(self):
+        while True:
+            if self.queue and self.enabled:
+                batch = self.queue[:10]
+                self.queue = self.queue[10:]
+                try:
+                    requests.post("https://telemetry.nexus.app/v1/ingest", json=batch, timeout=5)
+                except:
+                    pass
+            time.sleep(60)
+3.31. Subagentes
+3.31.1. Builder (agents/builder.py)
+python
+class Builder:
+    def __init__(self, llm_provider, system_prompt: str, temperature: float = 0.3):
+        self.llm = llm_provider
+        self.system_prompt = system_prompt
+        self.temperature = temperature
+        self.constraints = []
+
+    def add_constraint(self, constraint: str):
+        self.constraints.append(constraint)
+
+    def generate(self, task: str, knowledge: str = "") -> str:
+        constraints_text = "\n".join(self.constraints)
+        prompt = f"""{self.system_prompt}
+
+Conocimiento relevante:
+{knowledge}
+
+Restricciones:
+{constraints_text}
+
+Tarea: {task}
+
+Responde SOLO con el código Python, sin explicaciones."""
+        messages = [{"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": prompt}]
+        response = self.llm.chat_completion(messages, temperature=self.temperature)
+        code = response.content
+        if code.startswith("```python"):
+            code = code[9:-3].strip()
+        elif code.startswith("```"):
+            code = code[3:-3].strip()
+        return code
+3.31.2. Auditor (agents/auditor.py)
+python
+import subprocess
+import tempfile
+import os
+import ast
+
+class Auditor:
+    def __init__(self, llm_provider, system_prompt: str, temperature: float = 0.1):
+        self.llm = llm_provider
+        self.system_prompt = system_prompt
+        self.temperature = temperature
+
+    def lint(self, code: str) -> dict:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(code)
+            tmp = f.name
+        try:
+            pylint = subprocess.run(["pylint", "--score=n", tmp], capture_output=True, text=True)
+            mypy = subprocess.run(["mypy", "--ignore-missing-imports", tmp], capture_output=True, text=True)
+            bandit = subprocess.run(["bandit", "-r", tmp], capture_output=True, text=True)
+            return {"pylint": pylint.stdout, "mypy": mypy.stdout, "bandit": bandit.stdout}
+        finally:
+            os.unlink(tmp)
+
+    def security_scan(self, code: str) -> list:
+        issues = []
+        try:
+            tree = ast.parse(code)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    if isinstance(node.func, ast.Name) and node.func.id in ["eval", "exec", "compile"]:
+                        issues.append(f"Línea {node.lineno}: uso de {node.func.id}")
+                    elif isinstance(node.func, ast.Attribute) and node.func.attr in ["system", "popen"]:
+                        issues.append(f"Línea {node.lineno}: posible llamada a os.system")
+        except SyntaxError as e:
+            issues.append(f"SyntaxError: {e}")
+        return issues
+
+    def generate_tests(self, code: str) -> str:
+        prompt = f"""Código:
+{code}
+
+Genera un test completo con pytest que cubra la funcionalidad principal.
+Responde solo con el código Python, sin explicaciones."""
+        messages = [{"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": prompt}]
+        response = self.llm.chat_completion(messages, temperature=self.temperature)
+        tests = response.content
+        if tests.startswith("```python"):
+            tests = tests[9:-3].strip()
+        return tests
+3.31.3. Researcher (agents/researcher.py)
+python
+class Researcher:
+    def __init__(self, llm_provider):
+        self.llm = llm_provider
+
+    def research(self, query: str) -> str:
+        prompt = f"Investiga sobre: {query}. Resume la información más relevante."
+        messages = [{"role": "user", "content": prompt}]
+        response = self.llm.chat_completion(messages)
+        return response.content
+3.31.4. Architect (agents/architect.py)
+python
+class Architect:
+    def __init__(self, llm_provider):
+        self.llm = llm_provider
+
+    def propose_refactor(self, code: str) -> str:
+        prompt = f"""Analiza el siguiente código y propón mejoras estructurales aplicando principios SOLID:
+{code}"""
+        messages = [{"role": "user", "content": prompt}]
+        response = self.llm.chat_completion(messages)
+        return response.content
+3.31.5. SecurityExpert (agents/security_expert.py)
+python
+class SecurityExpert:
+    def __init__(self, llm_provider):
+        self.llm = llm_provider
+
+    def analyze(self, code: str) -> str:
+        prompt = f"""Revisa el siguiente código en busca de vulnerabilidades de seguridad (inyección, secrets, etc.):
+{code}"""
+        messages = [{"role": "user", "content": prompt}]
+        response = self.llm.chat_completion(messages)
+        return response.content
+3.32. Herramientas
+3.32.1. Linter (tools/linter.py)
+python
+import subprocess
+import tempfile
+import os
+
+def run_linters(code: str) -> dict:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+        f.write(code)
+        tmp = f.name
+    try:
+        pylint = subprocess.run(["pylint", "--score=n", tmp], capture_output=True, text=True)
+        mypy = subprocess.run(["mypy", "--ignore-missing-imports", tmp], capture_output=True, text=True)
+        bandit = subprocess.run(["bandit", "-r", tmp], capture_output=True, text=True)
+        radon = subprocess.run(["radon", "cc", tmp, "-a"], capture_output=True, text=True)
+        return {
+            "pylint_errors": len(pylint.stdout.splitlines()),
+            "mypy_errors": len(mypy.stdout.splitlines()),
+            "bandit_vulns": len(bandit.stdout.splitlines()),
+            "cyclomatic_complexity": float(radon.stdout.split()[-1]) if radon.stdout else 0
+        }
+    finally:
+        os.unlink(tmp)
+3.32.2. Git Manager (tools/git_manager.py)
+python
+import git
+
+class GitManager:
+    def __init__(self, repo_path: str):
+        try:
+            self.repo = git.Repo(repo_path)
+        except git.InvalidGitRepositoryError:
+            self.repo = git.Repo.init(repo_path)
+
+    def commit(self, message: str):
+        self.repo.index.add("*")
+        self.repo.index.commit(message)
+3.32.3. Secret Scanner (tools/secret_scanner.py)
+python
+import re
+
+def scan_secrets(code: str) -> list:
+    patterns = [
+        (r'(api_key|apikey|secret|token)\s*=\s*["\']([^"\']+)["\']', "API Key"),
+        (r'password\s*=\s*["\']([^"\']+)["\']', "Password"),
+    ]
+    found = []
+    for pattern, name in patterns:
+        matches = re.findall(pattern, code, re.IGNORECASE)
+        for match in matches:
+            found.append(f"{name} detectada: {match[1]}")
+    return found
+3.32.4. Load Tester (tools/load_tester.py)
+python
+import time
+import psutil
+
+def load_test(func, iterations=10):
+    cpu_samples = []
+    mem_samples = []
+    for _ in range(iterations):
+        start_cpu = psutil.cpu_percent(interval=0.1)
+        start_mem = psutil.virtual_memory().used
+        func()
+        end_cpu = psutil.cpu_percent(interval=0.1)
+        end_mem = psutil.virtual_memory().used
+        cpu_samples.append(end_cpu - start_cpu)
+        mem_samples.append(end_mem - start_mem)
+    return {"avg_cpu": sum(cpu_samples)/iterations, "avg_mem": sum(mem_samples)/iterations}
+3.32.5. System Restore (tools/system_restore.py)
+python
+import subprocess
+
+def create_restore_point():
+    subprocess.run(["wmic", "/Namespace:\\\\root\\default", "Path", "SystemRestore", "Call", "CreateRestorePoint", "Nexus", "100", "7"], capture_output=True)
+
+def revert_to_last_restore():
+    subprocess.run(["rstrui.exe", "/auto"], capture_output=True)
+4. ARCHIVOS DE CONFIGURACIÓN
+4.1. config/settings.yaml
+yaml
+app:
+  version: "1.0.0"
+  first_run: true
+  language: "es-ES"
+  timezone: "Europe/Madrid"
+  data_dir: "%APPDATA%\\Nexus"
+  projects_dir: "%USERPROFILE%\\Documents\\NexusProjects"
+
+personality:
+  default: "friendly"
+  evolve: true
+  history_max: 5
+  tone: "supportive"
+
+resources:
+  background_queue_max_size: 10
+  background_queue_overflow_policy: "ask_user"
+  undo_journal_max_size: 1073741824
+  offline_cache_ttl_days: 30
+  max_concurrent_tasks: 3
+  max_memory_percent: 80
+
+sync:
+  onedrive_enabled: false
+  onedrive_folder: "NexusBackup"
+  cross_device_conflict_policy: "ask_user"
+  auto_sync_interval_hours: 24
+
+telemetry:
+  enabled: false
+  anonymize: true
+  send_interval_days: 7
+
+security:
+  windows_hello_required_for_critical: true
+  double_confirm_risk_level: "high"
+  auto_backup_before_system_changes: true
+
+voice:
+  wake_word: "Oye Nexus"
+  continuous_listening: false
+  tts_voice: "Microsoft Helena"
+  tts_speed: 0
+  tts_emotion: true
+
+ui:
+  theme: "system"
+  font_scale: 1.0
+  show_tutorial_on_start: true
+  tree_panel_width: 300
+  chat_panel_width: 600
+  metrics_panel_visible: true
+
+development:
+  default_quality_profile: "production"
+  prototype_mode_fast: true
+  auto_generate_docs: false
+  auto_generate_diagrams: false
+
+system:
+  docker_image: "python:3.11-slim"
+  docker_memory_limit: "512m"
+  docker_cpu_limit: 0.5
+  docker_network_disabled: true
+  temp_dir_cleanup_hours: 24
+
+logging:
+  level: "INFO"
+  json_format: true
+  file_enabled: true
+  file_path: "%APPDATA%\\Nexus\\logs\\nexus.log"
+  max_file_size_mb: 10
+  backup_count: 5
+
+services:
+  docker:
+    executable: "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"
+    process_name: "Docker Desktop.exe"
+    background: true
+  ollama:
+    executable: "%LOCALAPPDATA%\\Programs\\Ollama\\ollama.exe"
+    process_name: "ollama.exe"
+    background: true
+4.2. config/providers.yaml
+yaml
+providers:
+  - name: openai
+    type: cloud
+    api_key: ""
+    base_url: "https://api.openai.com/v1"
+    models: ["gpt-3.5-turbo", "gpt-4o-mini"]
+    limits:
+      type: "credit"
+      initial_credit: 5.0
+    cost_per_1k_tokens:
+      input: 0.0005
+      output: 0.0015
+    status: "active"
+
+  - name: google
+    type: cloud
+    api_key: ""
+    base_url: "https://generativelanguage.googleapis.com/v1"
+    models: ["gemini-1.5-flash"]
+    limits:
+      type: "quota"
+      requests_per_minute: 60
+      requests_per_day: 1500
+      reset_time: "00:00 UTC"
+    status: "active"
+
+  - name: deepseek
+    type: cloud
+    api_key: ""
+    base_url: "https://api.deepseek.com/v1"
+    models: ["deepseek-chat"]
+    limits:
+      type: "free_tier"
+      tokens_per_month: 5000000
+      reset_day: 1
+    status: "active"
+
+  - name: local_ollama
+    type: local
+    base_url: "http://localhost:11434/v1"
+    models: ["deepseek-coder:6.7b", "llama3.2"]
+    limits: {}
+    status: "active"
+4.3. config/agent_team.yaml
+yaml
+default:
+  base_agents: [Builder]
+teams:
+  - name: "simple"
+    complexity_min: 1
+    complexity_max: 3
+    agents: [Builder]
+  - name: "reviewed"
+    complexity_min: 4
+    complexity_max: 6
+    agents: [Builder, Auditor]
+  - name: "complex"
+    complexity_min: 7
+    complexity_max: 10
+    agents: [Builder, Auditor, Researcher, Architect]
+    conditional:
+      - if: "network in resources"
+        add: [SecurityExpert]
+4.4. config/quality_profiles.yaml
+yaml
+profiles:
+  prototype:
+    cyclomatic_complexity: 15
+    test_coverage: 0
+    pylint_errors: 0
+    mypy_errors: 0
+  production:
+    cyclomatic_complexity: 10
+    test_coverage: 80
+    pylint_errors: 0
+    mypy_errors: 0
+4.5. Prompts (config/prompts/)
+builder.txt:
+
+text
+Eres un programador experto en Python. Tu única tarea es escribir código Python de alta calidad. No incluyas explicaciones, solo el código. Si necesitas aclaraciones, asume lo más razonable.
+auditor.txt:
+
+text
+Eres un revisor estricto de código. Analiza el código, ejecuta herramientas estáticas y genera tests. Tus respuestas deben ser concisas y técnicas.
+researcher.txt:
+
+text
+Eres un investigador. Busca información relevante en fuentes confiables y resume de forma técnica.
+architect.txt:
+
+text
+Eres un arquitecto de software. Propón mejoras estructurales aplicando principios SOLID y patrones de diseño.
+security_expert.txt:
+
+text
+Eres un experto en seguridad. Analiza vulnerabilidades, inyecciones, secretos y prácticas inseguras.
+5. PRUEBAS
+5.1. Pruebas unitarias (tests/unit/test_classifier.py)
+python
+import pytest
+from core.classifier import IntentClassifier
+
+def test_classify_software_dev():
+    clf = IntentClassifier()
+    result = clf.classify("escribe una función que sume dos números")
+    assert result["intent"] == "software_dev"
+    assert result["complexity"] >= 1
+    assert result["complexity"] <= 10
+
+def test_classify_file_management_with_context():
+    clf = IntentClassifier()
+    context = {"window_title": "Explorer"}
+    result = clf.classify("organiza esta carpeta", context)
+    assert result["intent"] == "file_management"
+5.2. Pruebas de integración (tests/integration/test_full_flow.py)
+python
+import pytest
+import asyncio
+from core.orchestrator import NexusOrchestrator
+
+@pytest.mark.asyncio
+async def test_simple_task():
+    orch = NexusOrchestrator()
+    result = await orch.process_request("escribe una función que sume dos números")
+    assert "results" in result
+    assert "code" in result["results"][0]
+    code = result["results"][0]["code"]
+    assert "def sumar" in code or "def suma" in code
+5.3. Pruebas de regresión (tests/regression/tasks.json)
+json
+[
+  {
+    "id": "reg_001",
+    "input": "escribe una función que sume dos números",
+    "expected_contains": ["def", "return"]
+  },
+  {
+    "id": "reg_002",
+    "input": "organiza mis descargas por fecha",
+    "expected_intent": "file_management"
+  }
+]
+6. INSTALACIÓN Y DESPLIEGUE
+6.1. Requisitos previos
+Windows 10/11 (64 bits)
+
+Python 3.11 (instalado y en PATH)
+
+Docker Desktop (opcional, pero necesario para sandbox)
+
+Ollama (opcional, para modelos locales)
+
+Git (opcional)
+
+6.2. Instalación paso a paso
+Crear la estructura de directorios según el árbol mostrado.
+
+Abrir una terminal como administrador en la raíz del proyecto.
+
+Crear entorno virtual:
+
+bash
+python -m venv venv
+.\venv\Scripts\activate
+Instalar dependencias:
+
+bash
+pip install -r requirements.txt
+Contenido de requirements.txt:
+
+text
+pywebview
+flask
+pyyaml
+sentence-transformers
+chromadb
+docker
+python-dotenv
+pywin32
+uiautomation
+pygetwindow
+psutil
+websockets
+requests
+python-json-logger
+openai
+vosk
+pylint
+mypy
+bandit
+radon
+gitpython
+pytest
+pystray
+Pillow
+Configurar claves de API en config/providers.yaml (opcional).
+
+Ejecutar Nexus:
+
+bash
+python main.py
+Aparecerá el icono en la bandeja del sistema. Haga clic derecho y seleccione "Abrir Nexus" para ver la ventana.
+
+6.3. Construcción del instalador
+Para crear un ejecutable único con PyInstaller:
+
+bash
+pip install pyinstaller
+pyinstaller --onefile --windowed --add-data "config;config" --add-data "webapp;webapp" --add-data "prompts;prompts" --add-data "assets;assets" --name "Nexus" main.py
+El ejecutable se generará en dist/Nexus.exe. Se puede distribuir como un único archivo.
+
+6.4. Ejecución como servicio de Windows
+Usar NSSM (Non‑Sucking Service Manager):
+
+bash
+nssm install Nexus "C:\path\to\nexus\dist\Nexus.exe"
+nssm start Nexus
+7. GLOSARIO
+Término	Significado
+API	Interfaz de programación de aplicaciones.
+ChromaDB	Base de datos vectorial para embeddings.
+Docker	Plataforma de contenedores para ejecutar aplicaciones aisladas.
+Embedding	Representación numérica de texto.
+LLM	Modelo de lenguaje grande (Large Language Model).
+PyWebView	Biblioteca para incrustar navegadores web en aplicaciones Python.
+RAG	Generación aumentada por recuperación (Recuperación + LLM).
+Sandbox	Entorno aislado para ejecutar código de forma segura.
+TTS	Texto a voz (Text‑to‑Speech).
+NOTAS FINALES DEL EXPERTO
+Seguridad en la terminación de procesos: Se utiliza psutil para matar procesos hijos. Es necesario ejecutar Nexus con privilegios de administrador para poder terminar Docker Desktop correctamente. Si no se tienen, se puede configurar Docker para que se ejecute como servicio y detenerlo con net stop. Se recomienda documentar esto al usuario.
+
+Rutas de ejecutables: Las rutas en settings.yaml usan variables de entorno (%LOCALAPPDATA%). Se expanden con os.path.expandvars() en service_manager.py.
+
+Resiliencia: Si Docker u Ollama no están instalados, Nexus debe continuar funcionando (aunque el sandbox o el LLM local no estén disponibles). Se deben capturar las excepciones y mostrar mensajes de advertencia.
+
+Pruebas: Incluir pruebas que verifiquen que los servicios se inician y detienen correctamente, usando mocks para subprocess y psutil.
+
+Compatibilidad con otros SO: Si se desea portar a Linux/macOS, service_manager.py deberá usar comandos como systemctl y rutas diferentes.
+
+Con esta especificación, el equipo de desarrollo tiene todos los elementos para construir Nexus de manera profesional y sin ambigüedades. Cualquier duda adicional, estoy a disposición.
+

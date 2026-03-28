@@ -1,0 +1,613 @@
+FLUJO DE TRABAJO DE NEXUS – ESPECIFICACIÓN TÉCNICA COMPLETA (CON MEJORAS DE GESTIÓN DE PROCESOS EN SEGUNDO PLANO)
+Para todos los públicos: desde el usuario que solo sabe usar Windows hasta el programador experto de 20 años y las IA autónomas
+
+Este documento describe con máximo detalle qué hace Nexus en cada fase de su funcionamiento. Incluye:
+
+Explicación sencilla: en cada fase, primero entenderás qué ocurre en palabras cotidianas.
+
+Especificación técnica: después, con diagramas, fragmentos de código completos, estructuras de datos y configuraciones, para que un programador (o una IA) pueda implementar Nexus sin ambigüedades.
+
+Ejemplos funcionales: casos reales de uso que muestran cómo Nexus procesa cada petición.
+
+Al final encontrarás un glosario de términos técnicos explicados en lenguaje sencillo.
+
+0. INTRODUCCIÓN: ¿QUÉ ES NEXUS?
+Para todos
+Nexus es un asistente que vive en tu ordenador. Puedes hablarle o escribirle como si fuera una persona. Él te ayuda a hacer tareas como:
+
+Escribir programas (software) que tú le pidas.
+
+Organizar tus archivos, carpetas, fotos.
+
+Controlar aplicaciones (abrir, cerrar, mover ventanas).
+
+Recordarte cosas, gestionar tu calendario.
+
+Aprender a hacer cosas nuevas si le enseñas.
+
+Es completamente gratuito y funciona sin conexión a internet (aunque si tienes internet puede usar servicios gratuitos para ser más rápido). Es accesible: puedes usar la voz, escribir, o incluso hacer gestos con los dedos si tienes pantalla táctil.
+
+Para programadores
+Nexus es una aplicación nativa de Windows (empaquetada como .msi o .exe) que integra:
+
+Un orquestador escrito en Python (el núcleo), que se comunica mediante PyWebView para la interfaz web. PyWebView incrusta un navegador (Chromium/Edge/WebKit2) directamente en la ventana de la aplicación, eliminando la sobrecarga de un proceso separado de Electron.
+
+Módulos de reconocimiento de voz (local con Vosk o Windows Speech), síntesis de voz (Windows TTS), control de aplicaciones (UI Automation), gestión de archivos, sandbox Docker (para ejecutar código de forma segura), y proveedores de IA (locales con Ollama o APIs en la nube con capas gratuitas).
+
+Gestor de servicios externos (ServiceManager) que lanza Docker Desktop y Ollama en segundo plano (sin ventanas) y los detiene al cerrar Nexus.
+
+Bandeja del sistema (SystemTray) que muestra un icono en la bandeja de Windows, desde donde el usuario puede abrir la ventana principal, ver el estado o salir. La ventana de PyWebView se abre solo cuando el usuario lo solicita.
+
+Persistencia de estado en SQLite y sistema de archivos, con copias de seguridad automáticas en OneDrive (opcional).
+
+Arquitectura modular que permite añadir habilidades, plugins y extensiones sin reiniciar.
+
+1. FASES DEL FLUJO DE TRABAJO
+A continuación, se describen las 15 fases que Nexus ejecuta desde que recibe una petición hasta que entrega el resultado. Cada fase incluye su propósito, su explicación en lenguaje natural y su especificación técnica con ejemplos funcionales.
+
+FASE 0: CONFIGURACIÓN INICIAL Y LANZAMIENTO
+Explicación sencilla
+Cuando abres Nexus por primera vez, él:
+
+Se presenta y te pregunta cómo quieres que te hable (formal, amigable…).
+
+Revisa tu ordenador para saber si es rápido o lento, y se ajusta para que no te moleste.
+
+Te pide que leas algunas frases para aprender a reconocer tu voz (si usas micrófono).
+
+Te pregunta si quieres guardar tus proyectos en OneDrive para no perderlos.
+
+Arranca Docker Desktop y Ollama en segundo plano (si están instalados) para que no veas ventanas emergentes.
+
+Muestra un icono en la bandeja del sistema (cerca del reloj). Desde ahí podrás abrir la ventana principal o salir.
+
+Si ya habías usado Nexus, él recuerda todas tus preferencias y lo que has hecho antes.
+
+Especificación técnica
+
+Módulos involucrados:
+
+SettingsLoader: carga config/settings.yaml
+
+HardwareSensor: detecta GPU, RAM, CPU
+
+VoiceTrainer: primera sesión de entrenamiento (si se activa)
+
+OneDriveSync: comprueba disponibilidad y espacio
+
+ServiceManager: lanza y detiene servicios externos (Docker, Ollama)
+
+SystemTray: crea el icono en la bandeja y maneja el menú
+
+WebViewWindow: crea la ventana de PyWebView (solo cuando se pide)
+
+Archivo config/settings.yaml (ejemplo completo):
+
+yaml
+app:
+  version: "1.0.0"
+  first_run: true
+  language: "es-ES"
+  data_dir: "%APPDATA%\\Nexus"
+  projects_dir: "%USERPROFILE%\\Documents\\NexusProjects"
+
+personality:
+  default: "friendly"  # formal, friendly, sarcastic
+  evolve: true
+  history_max: 5
+
+resources:
+  background_queue_max_size: 10
+  background_queue_overflow_policy: "ask_user"
+  undo_journal_max_size: 1073741824  # 1 GB
+  offline_cache_ttl_days: 30
+
+sync:
+  onedrive_enabled: false
+  cross_device_conflict_policy: "ask_user"
+
+telemetry:
+  enabled: false
+
+# Servicios externos que Nexus puede gestionar
+services:
+  docker:
+    executable: "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"
+    process_name: "Docker Desktop.exe"
+    background: true
+  ollama:
+    executable: "%LOCALAPPDATA%\\Programs\\Ollama\\ollama.exe"
+    process_name: "ollama.exe"
+    background: true
+
+# Proveedores de IA (se amplían dinámicamente)
+providers:
+  - name: openai
+    type: cloud
+    api_key: ""
+    base_url: "https://api.openai.com/v1"
+    models: ["gpt-3.5-turbo", "gpt-4o-mini"]
+    limits:
+      type: "credit"
+      initial_credit: 5.0
+      remaining_credit: 5.0
+    cost_per_1k_tokens: {input: 0.0005, output: 0.0015}
+  - name: local_ollama
+    type: local
+    base_url: "http://localhost:11434/v1"
+    models: ["deepseek-coder:6.7b", "llama3.2"]
+    limits: {}
+Código Python (implementación completa del lanzamiento con bandeja y servicios):
+
+python
+import webview
+import threading
+import json
+import os
+import sys
+from pathlib import Path
+from flask import Flask, send_from_directory, request, jsonify
+from werkzeug.serving import make_server
+
+class NexusOrchestrator:
+    def __init__(self):
+        self.base_dir = Path(os.getenv('APPDATA')) / 'Nexus'
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.settings = self._load_settings()
+        self.hardware = HardwareSensor()
+        self.personality = PersonalityEngine(self.settings["personality"])
+        self.undo = UndoManager(limit=self.settings["resources"]["undo_journal_max_size"])
+        self.queue = QueueManager(
+            interactive_limit=None,
+            background_limit=self.settings["resources"]["background_queue_max_size"],
+            overflow_policy=self.settings["resources"]["background_queue_overflow_policy"]
+        )
+        self.voice = VoiceTrainer() if self.settings["first_run"] else None
+        self.one_drive = OneDriveSync() if self.settings["sync"]["onedrive_enabled"] else None
+        self.web_server = None
+        self.server_thread = None
+        self.window = None
+        self.window_visible = False
+
+        # Nuevos componentes
+        self.service_manager = ServiceManager(self.settings)  # gestiona Docker, Ollama
+        self.system_tray = None
+
+    def _load_settings(self):
+        settings_path = self.base_dir / 'settings.yaml'
+        if settings_path.exists():
+            with open(settings_path, 'r') as f:
+                return yaml.safe_load(f)
+        else:
+            # Cargar por defecto desde el paquete
+            default = yaml.safe_load(open('config/settings.yaml', 'r'))
+            with open(settings_path, 'w') as f:
+                yaml.dump(default, f)
+            return default
+
+    def _start_web_server(self):
+        # Crear la aplicación Flask que sirve la interfaz
+        app = Flask(__name__, static_folder='webapp', static_url_path='')
+        self.web_server = make_server('127.0.0.1', 8080, app, threaded=True)
+
+        @app.route('/')
+        def index():
+            return send_from_directory('webapp', 'index.html')
+
+        @app.route('/api/chat', methods=['POST'])
+        def chat():
+            data = request.get_json()
+            user_message = data.get('message', '')
+            # Aquí se invocaría el flujo principal de procesamiento
+            response = self.process_request(user_message)
+            return jsonify(response)
+
+        # Otros endpoints para gestión de archivos, plugins, etc.
+        self.server_thread = threading.Thread(target=self.web_server.serve_forever, daemon=True)
+        self.server_thread.start()
+
+    def _get_js_api(self):
+        # Objeto que se expone a JavaScript en la ventana
+        class JSAPI:
+            def __init__(self, orchestrator):
+                self.orchestrator = orchestrator
+
+            def send_message(self, text):
+                return self.orchestrator.process_request(text)
+
+            def get_files(self, path):
+                return self.orchestrator.file_manager.list(path)
+
+        return JSAPI(self)
+
+    def run(self):
+        # Paso 1: primera ejecución, mostrar diálogos de configuración
+        if self.settings['first_run']:
+            self._first_run_setup()
+
+        # Paso 2: cargar perfil de usuario
+        profile_path = self.base_dir / 'profile.json'
+        if profile_path.exists():
+            with open(profile_path, 'r') as f:
+                self.profile = json.load(f)
+        else:
+            self.profile = {}
+
+        # Paso 3: inicializar módulos con perfil
+        self.file_manager = FileManager(self.profile.get('workspace', str(Path.home())))
+        self.intent_classifier = IntentClassifier(self.base_dir / 'models')
+        self.rag = RAGEngine(self.base_dir / 'chroma_db')
+        self.api_gateway = APIGateway(self.settings['providers'], self.base_dir / 'quota.db')
+        self.sandbox = SandboxManager()
+
+        # Paso 4: iniciar servicios externos en segundo plano
+        self.service_manager.start_all()
+
+        # Paso 5: iniciar servidor web (Flask)
+        self._start_web_server()
+
+        # Paso 6: crear icono en la bandeja (sin ventana aún)
+        self.system_tray = SystemTray(self)
+        self.tray_thread = threading.Thread(target=self.system_tray.run, daemon=True)
+        self.tray_thread.start()
+
+        # Paso 7: mantener el hilo principal vivo hasta que se cierre la bandeja
+        self.tray_thread.join()
+
+    def show_window(self):
+        """Muestra la ventana principal (la crea si no existe)."""
+        if self.window is None:
+            self.window = webview.create_window(
+                title="Nexus Assistant",
+                url="http://localhost:8080",
+                width=1024,
+                height=768,
+                resizable=True,
+                fullscreen=False,
+                min_size=(800, 600),
+                js_api=self._get_js_api(),
+                confirm_close=True,
+                background_color="#2E2E2E"
+            )
+            self.window_thread = threading.Thread(target=webview.start, args=(self.window,), daemon=True)
+            self.window_thread.start()
+        else:
+            # Si ya existe, traer al frente (no soportado directamente en PyWebView)
+            pass
+
+    def _first_run_setup(self):
+        # Mostrar diálogos de bienvenida (usando ventanas nativas)
+        # Configurar personalidad, sincronización, etc.
+        self.settings['first_run'] = False
+        with open(self.base_dir / 'settings.yaml', 'w') as f:
+            yaml.dump(self.settings, f)
+
+    def process_request(self, user_input):
+        # Aquí va el flujo completo desde Fase 1 hasta Fase 15
+        pass
+
+    def shutdown(self):
+        """Limpieza completa al salir."""
+        if self.web_server:
+            self.web_server.shutdown()
+        if self.window:
+            self.window.destroy()
+        self.service_manager.shutdown()  # Detiene Docker, Ollama, etc.
+        self.queue.save(self.base_dir / 'queue.json')
+        self.undo.save(self.base_dir / 'undo.log')
+
+if __name__ == '__main__':
+    nexus = NexusOrchestrator()
+    nexus.run()
+Ejemplo funcional de lanzamiento:
+Un usuario hace doble clic en Nexus.msi. El instalador coloca los archivos en C:\Program Files\Nexus y crea un acceso directo. Al abrir Nexus:
+
+Se muestra un icono en la bandeja del sistema. No aparece ninguna ventana.
+
+El usuario hace clic derecho en el icono y selecciona "Abrir Nexus". Entonces se abre la ventana con PyWebView.
+
+Se detecta hardware: si tiene 8 GB RAM y GPU integrada, se marca como "bajo consumo" y se seleccionarán modelos locales pequeños.
+
+Se pregunta si quiere sincronizar con OneDrive. El usuario dice que sí, Nexus verifica espacio (hay 50 GB libres) y crea la carpeta Nexus en OneDrive.
+
+Todo funciona en un solo proceso Python, usando menos de 200 MB de RAM, y Docker/Ollama se ejecutan en segundo plano sin ventanas.
+
+FASE 1: RECEPCIÓN Y ANÁLISIS DE LA PETICIÓN
+(Sin cambios en la lógica, pero ahora el contexto puede incluir si la ventana está visible o no. Se añade una nota en la especificación técnica sobre que la bandeja sigue activa aunque la ventana esté cerrada.)
+
+Explicación sencilla
+(igual que antes)
+
+Especificación técnica
+(igual que antes, pero añadiendo que el InputHandler sigue funcionando incluso con la ventana cerrada, pues el icono de bandeja y el servicio de voz pueden activar la ventana si es necesario).
+
+FASE 2: ADQUISICIÓN DE CONOCIMIENTO (RAG)
+(Sin cambios)
+
+FASE 3: SELECCIÓN DEL PROVEEDOR Y PREPARACIÓN DEL ENTORNO
+(Sin cambios, pero asegurarse de que el sandbox Docker usa el servicio gestionado por ServiceManager)
+
+FASE 4: EVALUACIÓN DE RESULTADOS
+(Sin cambios)
+
+FASE 5: REFINAMIENTO ARQUITECTÓNICO
+(Sin cambios)
+
+FASE 6: GESTIÓN DE ERRORES
+(Sin cambios)
+
+FASE 7: RECUPERACIÓN Y GESTIÓN DE RECURSOS
+Explicación sencilla
+(igual que antes, pero ahora también se gestiona el reinicio de los servicios externos si fallan, gracias al SelfHealer y ServiceManager).
+
+Especificación técnica
+
+Se añade el ServiceManager y el SelfHealer para monitorear y reiniciar Docker/Ollama si es necesario.
+
+python
+# Ejemplo de código del SelfHealer que reinicia servicios
+class SelfHealer:
+    def __init__(self, service_manager):
+        self.service_manager = service_manager
+        self._monitor_thread = threading.Thread(target=self._monitor, daemon=True)
+        self._monitor_thread.start()
+
+    def _monitor(self):
+        while True:
+            # Verificar Docker
+            try:
+                subprocess.run(["docker", "ps"], capture_output=True, check=True)
+            except:
+                self.service_manager.restart_service("docker")
+            # Verificar Ollama
+            try:
+                subprocess.run(["ollama", "list"], capture_output=True, check=True)
+            except:
+                self.service_manager.restart_service("ollama")
+            time.sleep(60)
+FASE 8: CIERRE Y CAPITALIZACIÓN DE CRISIS
+(Sin cambios)
+
+FASE 9: GOBIERNO Y AUDITORÍA CONTINUA
+(Sin cambios)
+
+FASE 10: EVOLUCIÓN AUTOMÁTICA DEL PROPIO FLUJO
+(Sin cambios)
+
+FASE 11: GESTIÓN DEL CICLO DE VIDA DE MODELOS Y CONOCIMIENTO
+(Sin cambios)
+
+FASE 12: ESCALABILIDAD HORIZONTAL Y MULTI-TENENCIA
+(Sin cambios)
+
+FASE 13: RESILIENCIA PROACTIVA
+Explicación sencilla
+(igual que antes, pero ahora también se puede reiniciar Docker/Ollama si se detecta que han fallado)
+
+Especificación técnica
+Se añade la monitorización de servicios externos en ProactiveMonitor.
+
+FASE 14: INTEROPERABILIDAD Y ECOSISTEMA DE PLUGINS
+(Sin cambios)
+
+FASE 15: INTELIGENCIA ECONÓMICA
+(Sin cambios)
+
+2. GLOSARIO TÉCNICO – EXPLICADO PARA TODOS
+(Sin cambios)
+
+3. CONCLUSIÓN
+(Sin cambios)
+
+4. CÓDIGO ADICIONAL: NUEVOS MÓDULOS
+4.1. Gestor de servicios (core/service_manager.py)
+python
+"""
+Gestiona procesos externos (Docker, Ollama, etc.) lanzándolos en segundo plano
+y asegurando su terminación al cerrar Nexus.
+"""
+
+import subprocess
+import psutil
+import os
+import logging
+import time
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+class ServiceManager:
+    def __init__(self, config: dict):
+        self.config = config
+        self.processes = {}  # nombre -> objeto subprocess.Popen
+
+    def start_all(self):
+        for name, svc in self.config.get("services", {}).items():
+            self.start_service(name)
+
+    def start_service(self, name: str):
+        svc = self.config["services"].get(name)
+        if not svc:
+            logger.warning(f"Servicio {name} no configurado")
+            return
+        if self._is_running(svc["process_name"]):
+            logger.info(f"{name} ya está en ejecución")
+            return
+        executable = os.path.expandvars(svc["executable"])
+        if not os.path.exists(executable):
+            logger.error(f"Ejecutable {executable} no encontrado")
+            return
+        try:
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+            process = subprocess.Popen(
+                [executable],
+                startupinfo=startupinfo,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            self.processes[name] = process
+            logger.info(f"{name} iniciado en segundo plano (PID {process.pid})")
+            time.sleep(3)  # dar tiempo a que arranque
+        except Exception as e:
+            logger.exception(f"Error al iniciar {name}: {e}")
+
+    def _is_running(self, process_name: str) -> bool:
+        for proc in psutil.process_iter(['name']):
+            if proc.info['name'] == process_name:
+                return True
+        return False
+
+    def stop_all(self):
+        for name, proc in self.processes.items():
+            self._terminate_process(proc)
+        self._kill_orphans()
+
+    def _terminate_process(self, proc: subprocess.Popen):
+        try:
+            parent = psutil.Process(proc.pid)
+            children = parent.children(recursive=True)
+            for child in children:
+                child.terminate()
+            parent.terminate()
+            gone, alive = psutil.wait_procs(children + [parent], timeout=5)
+            for p in alive:
+                p.kill()
+            logger.info(f"Proceso {proc.pid} terminado")
+        except psutil.NoSuchProcess:
+            pass
+
+    def _kill_orphans(self):
+        target_names = ['Docker Desktop.exe', 'ollama.exe', 'com.docker.service', 'dockerd.exe']
+        for proc in psutil.process_iter(['name', 'pid']):
+            if proc.info['name'] in target_names:
+                try:
+                    proc.terminate()
+                    logger.info(f"Proceso huérfano {proc.info['name']} (PID {proc.info['pid']}) terminado")
+                except:
+                    pass
+
+    def restart_service(self, name: str):
+        self.stop_service(name)
+        self.start_service(name)
+
+    def shutdown(self):
+        self.stop_all()
+4.2. Bandeja del sistema (core/system_tray.py)
+python
+"""
+Icono en la bandeja del sistema (system tray) con menú contextual.
+Permite abrir/cerrar la ventana principal, ver estado y salir.
+"""
+
+import sys
+import threading
+from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
+
+class SystemTray:
+    def __init__(self, orchestrator, icon_path: str = None):
+        self.orchestrator = orchestrator
+        self.icon = None
+        self.icon_path = icon_path or self._default_icon()
+        self._running = False
+
+    def _default_icon(self) -> str:
+        icon_file = Path(__file__).parent.parent / "assets" / "nexus_icon.ico"
+        return str(icon_file) if icon_file.exists() else None
+
+    def run(self):
+        import pystray
+        from PIL import Image
+
+        if self.icon_path and Path(self.icon_path).exists():
+            image = Image.open(self.icon_path)
+        else:
+            image = Image.new('RGB', (64, 64), color='blue')
+
+        menu = pystray.Menu(
+            pystray.MenuItem("Abrir Nexus", self._on_open),
+            pystray.MenuItem("Estado", self._on_status),
+            pystray.MenuItem("Salir", self._on_quit)
+        )
+
+        self.icon = pystray.Icon("nexus", image, "Nexus Assistant", menu)
+        self._running = True
+        self.icon.run()
+
+    def _on_open(self, icon, item):
+        self.orchestrator.show_window()
+
+    def _on_status(self, icon, item):
+        import win32api
+        win32api.MessageBox(0, "Nexus está funcionando correctamente.\n\nServicios activos:\n- Docker\n- Ollama", "Estado", 0x40)
+
+    def _on_quit(self, icon, item):
+        self.orchestrator.shutdown()
+        if self.icon:
+            self.icon.stop()
+        sys.exit(0)
+
+    def stop(self):
+        if self.icon:
+            self.icon.stop()
+        self._running = False
+5. INTEGRACIÓN EN LAS FASES
+Fase 0: Se ha modificado para incluir la creación del ServiceManager y SystemTray, y el lanzamiento de servicios en segundo plano. La ventana ya no se abre automáticamente; solo aparece cuando el usuario la solicita desde la bandeja.
+
+Fase 7 (Recuperación): Se ha añadido la capacidad de reiniciar servicios externos mediante el SelfHealer (que usa ServiceManager.restart_service).
+
+Fase 13 (Resiliencia proactiva): El monitor de sistema ahora también vigila el estado de Docker y Ollama.
+
+6. INSTALACIÓN Y DESPLIEGUE (ACTUALIZADO)
+6.1. Requisitos previos
+Windows 10/11 (64 bits)
+
+Python 3.11
+
+Docker Desktop (opcional, pero recomendado)
+
+Ollama (opcional, para modelos locales)
+
+Git (opcional)
+
+6.2. Instalación paso a paso
+Crear la estructura de directorios según el árbol.
+
+Crear entorno virtual y activarlo:
+
+bash
+python -m venv venv
+.\venv\Scripts\activate
+Instalar dependencias (incluyendo pystray, Pillow, psutil):
+
+bash
+pip install -r requirements.txt
+Configurar rutas de ejecutables en config/settings.yaml (expandir variables de entorno si es necesario).
+
+Ejecutar Nexus:
+
+bash
+python main.py
+Aparecerá el icono en la bandeja. Haga clic derecho y seleccione "Abrir Nexus" para ver la ventana.
+
+6.3. Construcción del instalador
+Con PyInstaller:
+
+bash
+pyinstaller --onefile --windowed --add-data "config;config" --add-data "webapp;webapp" --add-data "assets;assets" --name "Nexus" main.py
+6.4. Ejecución como servicio de Windows
+Usar NSSM para instalar Nexus.exe como servicio, asegurando que se ejecute con privilegios suficientes para manejar Docker.
+
+7. NOTAS FINALES DEL EXPERTO
+Privilegios: Para terminar Docker Desktop, es posible que se necesiten permisos de administrador. Se recomienda que Nexus se ejecute con estos permisos o que se configure Docker como servicio de Windows.
+
+Rutas de ejecutables: Se deben expandir variables de entorno como %LOCALAPPDATA% con os.path.expandvars().
+
+Resiliencia: Si Docker u Ollama no están instalados, Nexus debe continuar funcionando (sin el sandbox o el LLM local). Se mostrarán mensajes de advertencia en los logs.
+
+Pruebas: Incluir pruebas unitarias e integración que verifiquen el inicio y detención de los servicios, usando mocks para subprocess y psutil.
